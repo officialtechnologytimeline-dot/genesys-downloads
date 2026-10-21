@@ -38,7 +38,10 @@ case "$KIND" in
     cd /tmp/p/genesys-android
     set -a; . /tmp/keys/signing.env; set +a
     export GENESYS_KEYSTORE=/tmp/keys/genesys-android.p12
-    gradle --no-daemon -q -PgenesysVersion="$VER" assembleRelease 2>&1 | grep -v "^$" | tail -80
+    if ! gradle --no-daemon --console=plain -PgenesysVersion="$VER" assembleRelease > /tmp/gradle.log 2>&1; then
+      grep -E "^e: |error:|FAILURE|What went wrong|^> " /tmp/gradle.log | head -80; tail -40 /tmp/gradle.log; exit 1
+    fi
+    grep -E "^w: |BUILD SUCCESSFUL" /tmp/gradle.log | tail -40 || true
     APK=app/build/outputs/apk/release/app-release.apk
     [ -f "$APK" ] || { echo "APK NON CREATO"; exit 1; }
     "$BT/apksigner" verify --print-certs "$APK" | grep -v "^WARNING" | head -8
