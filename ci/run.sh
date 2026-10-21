@@ -49,6 +49,21 @@ case "$KIND" in
     OUT="genesys-android-$VER.apk"; cp "$APK" "$OUT"; sha256sum "$OUT" | tee "$OUT.sha256"; ls -l "$OUT"
     up "$OUT"; up "$OUT.sha256"
     ;;
+  catalog)
+    jq -e . ci/android-catalog.json >/dev/null
+    cp ci/android-catalog.json android-catalog.json
+    gh release upload genesys-channel android-catalog.json --clobber
+    echo "catalogo Android pubblicato"
+    ;;
+  test)
+    open_enc ci/payload.enc ci/payload.key.enc /tmp/p
+    rm -f /tmp/vault.key
+    cd /tmp/p/genesys-android
+    if ! gradle --no-daemon --console=plain assembleDebug > /tmp/gradle.log 2>&1; then
+      grep -E "^e: |error:|FAILURE|What went wrong|^> " /tmp/gradle.log | head -80; tail -40 /tmp/gradle.log; exit 1
+    fi
+    mkdir -p /tmp/test && cp app/build/outputs/apk/debug/app-debug.apk /tmp/test/genesys-debug.apk && ls -l /tmp/test
+    ;;
   publish)
     VER=$(jq -r .version ci/job.json); TAG="android-$VER"; OUT="genesys-android-$VER.apk"
     get "$OUT" "$OUT"; get "$OUT.sha256" "$OUT.sha256"; sha256sum -c "$OUT.sha256"
