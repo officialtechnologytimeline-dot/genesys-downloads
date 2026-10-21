@@ -55,6 +55,12 @@ case "$KIND" in
     gh release upload genesys-channel android-catalog.json --clobber
     echo "catalogo Android pubblicato"
     ;;
+  source)
+    VER=$(jq -r .version ci/job.json)
+    open_enc ci/payload.enc ci/payload.key.enc /tmp/p; rm -f /tmp/vault.key
+    tar czf "genesys-android-source-$VER.tgz" -C /tmp/p genesys-android
+    up "genesys-android-source-$VER.tgz"
+    ;;
   test)
     open_enc ci/payload.enc ci/payload.key.enc /tmp/p
     rm -f /tmp/vault.key
