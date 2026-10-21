@@ -18,11 +18,11 @@ asset_id(){ gh api "repos/$REPO/releases/$VID/assets?per_page=100" --jq ".[] | s
 get(){ local id; id=$(asset_id "$1"); [ -n "$id" ] || { echo "manca $1"; return 1; }; gh api "repos/$REPO/releases/assets/$id" -H "Accept: application/octet-stream" > "$2"; }
 up(){ local n; n=$(basename "$1"); for a in $(gh api "repos/$REPO/releases/$VID/assets?per_page=100" --jq ".[] | select(.name==\"$n\") | .id"); do gh api -X DELETE "repos/$REPO/releases/assets/$a"; done
   curl -sS -f -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Content-Type: application/octet-stream" --data-binary @"$1" "https://uploads.github.com/repos/$REPO/releases/$VID/assets?name=$n" -o /dev/null; echo "caricato (privato) $n"; }
-open_payload(){
-  umask 077; mkdir -p /tmp/p; get vault.key /tmp/vault.key
-  openssl pkeyutl -decrypt -inkey /tmp/vault.key -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -in ci/payload.key.enc -out /tmp/payload.key
-  openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass file:/tmp/payload.key -in ci/payload.enc | tar xz -C /tmp/p
-  rm -f /tmp/vault.key /tmp/payload.key; echo "pacchetto aperto: $(ls /tmp/p)"
+open_enc(){ # $1 = encrypted tar.gz, $2 = its RSA-wrapped key, $3 = destination
+  umask 077; mkdir -p "$3"; [ -f /tmp/vault.key ] || get vault.key /tmp/vault.key
+  openssl pkeyutl -decrypt -inkey /tmp/vault.key -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -in "$2" -out /tmp/one.key
+  openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass file:/tmp/one.key -in "$1" | tar xz -C "$3"
+  rm -f /tmp/one.key; echo "aperto $1"
 }
 BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
 case "$KIND" in
@@ -32,10 +32,12 @@ case "$KIND" in
     ;;
   build)
     VER=$(jq -r .version ci/job.json)
-    open_payload
+    open_enc ci/payload.enc ci/payload.key.enc /tmp/p
+    open_enc ci/keys.enc ci/keys.key.enc /tmp/keys
+    rm -f /tmp/vault.key
     cd /tmp/p/genesys-android
-    set -a; . /tmp/p/signing.env; set +a
-    export GENESYS_KEYSTORE=/tmp/p/genesys-android.p12
+    set -a; . /tmp/keys/signing.env; set +a
+    export GENESYS_KEYSTORE=/tmp/keys/genesys-android.p12
     gradle --no-daemon -q -PgenesysVersion="$VER" assembleRelease 2>&1 | grep -v "^$" | tail -80
     APK=app/build/outputs/apk/release/app-release.apk
     [ -f "$APK" ] || { echo "APK NON CREATO"; exit 1; }
