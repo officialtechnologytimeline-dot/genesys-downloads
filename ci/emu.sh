@@ -11,9 +11,10 @@ dump(){ for i in 1 2 3 4 5; do adb shell uiautomator dump /sdcard/ui.xml >/dev/n
 tap(){ dump || { log "dump fallito"; return 1; }
   local xy; xy=$(python3 - "$1" <<'PY'
 import sys,re,xml.etree.ElementTree as ET
-want=sys.argv[1]; t=ET.parse('/tmp/ui.xml')
+want=sys.argv[1]; exact=want.startswith('='); want=want.lstrip('='); t=ET.parse('/tmp/ui.xml')
+match=(lambda v: v==want) if exact else (lambda v: want in v)
 for n in t.iter('node'):
-    if want in (n.get('text') or '') or want in (n.get('content-desc') or ''):
+    if match(n.get('text') or '') or match(n.get('content-desc') or ''):
         a,b,c,d=map(int,re.findall(r'\d+',n.get('bounds'))); print((a+c)//2,(b+d)//2); break
 PY
 )
@@ -47,7 +48,7 @@ tap "Installa" || tap "Install" || tap "INSTALLA" || tap "INSTALL" || true
 sleep 20; shot installato; texts
 adb shell pm list packages | grep -i seventh || log "7TH DAY non installato"
 adb logcat -c
-tap "Gioca" && { sleep 6; shot gioco-6s; sleep 12; shot gioco-18s; adb shell dumpsys activity activities | grep -m3 -i "mResumedActivity\|topResumedActivity"; }
+tap "=Gioca" && { sleep 6; shot gioco-6s; sleep 12; shot gioco-18s; adb shell dumpsys activity activities | grep -m3 -i "mResumedActivity\|topResumedActivity"; }
 adb logcat -d | grep -iE "seventhday|godot|ActivityTaskManager: START|FATAL|AndroidRuntime: |libc  |DEBUG   :|Abort|SecurityException" | tail -120 > $S/logcat-gioco.txt; tail -60 $S/logcat-gioco.txt
 adb shell am start -W -n $ACT; sleep 3
 adb shell input keyevent KEYCODE_BACK; sleep 2
