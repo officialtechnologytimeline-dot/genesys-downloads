@@ -46,7 +46,9 @@ shot dopo-download; texts
 tap "Installa" || tap "Install" || tap "INSTALLA" || tap "INSTALL" || true
 sleep 20; shot installato; texts
 adb shell pm list packages | grep -i seventh || log "7TH DAY non installato"
-tap "Gioca" && { sleep 15; shot gioco; adb shell dumpsys activity activities | grep -m3 -i "mResumedActivity\|topResumedActivity"; }
+adb logcat -c
+tap "Gioca" && { sleep 6; shot gioco-6s; sleep 12; shot gioco-18s; adb shell dumpsys activity activities | grep -m3 -i "mResumedActivity\|topResumedActivity"; }
+adb logcat -d | grep -iE "seventhday|godot|ActivityTaskManager: START|FATAL|AndroidRuntime: |libc  |DEBUG   :|Abort|SecurityException" | tail -120 > $S/logcat-gioco.txt; tail -60 $S/logcat-gioco.txt
 adb shell am start -W -n $ACT; sleep 3
 adb shell input keyevent KEYCODE_BACK; sleep 2
 tap "Impostazioni"; sleep 2; shot impostazioni; texts
