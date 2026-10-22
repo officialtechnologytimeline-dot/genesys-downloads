@@ -37,6 +37,10 @@ print(' | '.join(n.get('text') for n in ET.parse('/tmp/ui.xml').iter('node') if 
 adb install -r -g /tmp/test/genesys-debug.apk || exit 1
 adb shell am start -W -n $ACT; sleep 6; shot lingua; texts
 tap "Italiano"; sleep 1; shot lingua-italiano; tap "Continua"; sleep 3; shot accesso; texts
+# 0.2.2: logo con la sigla del sito, niente "Mondi originali", "100% gratis, senza pubblicità" nell'accesso
+dump; grep -q "NEXT-GEN AI GAMING" /tmp/ui.xml && log "accesso: sigla sotto il logo ok" || log "ERRORE: sigla assente nell'accesso"
+grep -q "Mondi originali" /tmp/ui.xml && log "ERRORE: c'è ancora 'Mondi originali'" || log "accesso: 'Mondi originali' tolto (giusto)"
+grep -q "100% gratis, senza pubblicità" /tmp/ui.xml && log "accesso: 100% gratis senza pubblicità ok" || log "ERRORE: manca 100% gratis"
 tap "Continua con Google"; sleep 15; shot sito-google; texts
 adb shell am start -W -n $ACT; sleep 3; shot ritorno; texts
 # 0.2.0: pass di prova VERO (2 giorni, identità "Prova GENESYS") dalla cassaforte privata: serve per avere dal server
@@ -48,8 +52,27 @@ log "pass di prova: ${#PASS} caratteri"
 adb shell am start -W -n $ACT --es genesys_test_pass "$PASS" --es genesys_test_consent "'{\"v\":\"2026-10-15.2\",\"c\":\"IT\",\"s\":true}'"
 sleep 12; shot esplora; texts
 dump; anr; grep -q "Novità di GENESYS" /tmp/ui.xml && log "ERRORE: novità mostrate alla prima installazione" || log "prima installazione: nessuna finestra novità (giusto)"
-adb shell input swipe 500 1600 500 600 400; sleep 2; shot esplora-giu
-adb shell input swipe 500 600 500 1600 400; sleep 2
+# 0.2.2: niente riquadri sopra le locandine, icone smartphone/PC con legenda, Closed Beta al posto dello stato
+grep -q "NEXT-GEN AI GAMING" /tmp/ui.xml && log "esplora: sigla ok" || log "ERRORE: sigla assente in esplora"
+grep -q "ALPHA CHIUSA\|Alpha chiusa" /tmp/ui.xml && log "ERRORE: c'è ancora Alpha chiusa" || log "esplora: niente Alpha chiusa (giusto)"
+python3 - <<'PY'
+import xml.etree.ElementTree as ET
+n=list(ET.parse('/tmp/ui.xml').iter('node'))
+txt=[x.get('text') or '' for x in n]; desc=[x.get('content-desc') or '' for x in n]
+print('[emu] icone smartphone sulle locandine:', desc.count('Smartphone'), '· icone PC:', desc.count('PC'), '· legenda:', 'Smartphone' in txt and 'PC' in txt)
+print('[emu] riquadri verdi sulle locandine:', sum(1 for t in txt if t.startswith('✓')))
+PY
+adb shell input swipe 500 1600 500 600 400; sleep 2; shot esplora-giu; texts
+dump; grep -q "Closed Beta" /tmp/ui.xml && log "Closed Beta visibile" || { adb shell input swipe 500 1600 500 600 400; sleep 2; shot esplora-giu2; dump; grep -q "Closed Beta" /tmp/ui.xml && log "Closed Beta visibile" || log "ERRORE: Closed Beta non trovato"; }
+tap "PRIMAL" && { sleep 3; shot primal; texts; adb shell input keyevent KEYCODE_BACK; sleep 2; }
+adb shell input swipe 500 600 500 1600 400; sleep 1; adb shell input swipe 500 600 500 1600 400; sleep 2
+for g in "Luna Carnival" "Minuus" "Mini-Kart"; do
+  for k in 1 2 3; do tap "=$g" && break; adb shell input swipe 500 1500 500 800 400; sleep 1; done
+  sleep 3; dump; if grep -q "Questo gioco si gioca su PC" /tmp/ui.xml; then log "ERRORE: $g ancora solo PC"; else log "$g: gioco per smartphone (giusto)"; fi
+  grep -q 'content-desc="" .*Smartphone\|text="Smartphone"' /tmp/ui.xml && log "$g: icona smartphone nella pagina" || true
+  shot "$(echo $g | tr ' A-Z' '-a-z')"; adb shell input keyevent KEYCODE_BACK; sleep 2
+  adb shell input swipe 500 600 500 1600 400; sleep 1; adb shell input swipe 500 600 500 1600 400; sleep 1
+done
 tap "7TH DAY"; sleep 4; shot 7thday; texts
 tap "Scarica gratis"; sleep 3; shot permesso; texts
 adb shell appops set $PKG REQUEST_INSTALL_PACKAGES allow; sleep 1
@@ -83,10 +106,16 @@ if adb root >/dev/null 2>&1; then sleep 4; adb wait-for-device
   adb shell am force-stop $G7; adb unroot >/dev/null 2>&1; sleep 4; adb wait-for-device
 else log "root non disponibile: salto la prova del secondo livello"; fi
 adb logcat -d | grep -iE "seventhday|godot|ActivityTaskManager: START|FATAL|AndroidRuntime: |libc  |DEBUG   :|Abort|SecurityException" | tail -120 > $S/logcat-gioco.txt; tail -60 $S/logcat-gioco.txt
-# 0.2.1: novità una sola volta dopo l'aggiornamento (simulo un utente che arriva dalla 0.2.0)
+# 0.2.2: novità una sola volta dopo l'aggiornamento (simulo chi arriva dalla 0.2.1, poi dalla 0.2.0)
+adb shell am force-stop $PKG; sleep 1
+adb shell am start -W -n $ACT --es genesys_test_seen 0.2.1; sleep 5; shot novita-da-021; texts
+dump; anr; grep -q "Novità di GENESYS 0.2.2" /tmp/ui.xml && log "novità 0.2.2 mostrate: ok" || log "ERRORE: novità 0.2.2 non mostrate"
+grep -q "Locandine più pulite" /tmp/ui.xml && log "novità 0.2.2: testo ok" || log "ERRORE: testo novità 0.2.2"
+grep -q "7TH DAY 1.1.0: nuova modalità" /tmp/ui.xml && log "ERRORE: da 0.2.1 mostra anche le novità 0.2.1" || log "da 0.2.1: solo le novità 0.2.2 (giusto)"
+tap "Ho capito"; sleep 2
 adb shell am force-stop $PKG; sleep 1
 adb shell am start -W -n $ACT --es genesys_test_seen 0.2.0; sleep 5; shot novita; texts
-dump; anr; grep -q "Novità di GENESYS 0.2.1" /tmp/ui.xml && log "novità mostrate: ok" || log "ERRORE: novità non mostrate"
+dump; anr; grep -q "Novità di GENESYS 0.2.2" /tmp/ui.xml && log "novità mostrate: ok" || log "ERRORE: novità non mostrate"
 tap "Ho capito"; sleep 2
 adb shell am force-stop $PKG; sleep 1; adb shell am start -W -n $ACT; sleep 5
 dump; anr; grep -q "Novità di GENESYS" /tmp/ui.xml && log "ERRORE: novità mostrate due volte" || log "riaperta: novità non ripetute (giusto)"
@@ -103,6 +132,7 @@ tap "حسنًا" || true; sleep 2
 adb shell am start -W -n $ACT --es genesys_test_language it; sleep 3
 adb shell input keyevent KEYCODE_BACK; sleep 2
 tap "Impostazioni"; sleep 2; shot impostazioni; texts
+dump; grep -q "100% gratis, senza pubblicità" /tmp/ui.xml && log "impostazioni: 100% gratis senza pubblicità ok" || log "ERRORE: manca 100% gratis nelle impostazioni"
 tap "La mia libreria"; sleep 2; shot libreria; texts
 adb shell am start -W -n $ACT --es genesys_test_language ar; sleep 3; tap "الإعدادات" || true; sleep 2; shot arabo
 adb logcat -d -t 400 | grep -iE "genesys|AndroidRuntime|FATAL" | tail -60 > $S/logcat.txt
