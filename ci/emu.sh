@@ -52,8 +52,26 @@ shot dopo-download; texts
 tap "Installa" || tap "Install" || tap "INSTALLA" || tap "INSTALL" || true
 sleep 20; shot installato; texts
 adb shell pm list packages | grep -i seventh || log "7TH DAY non installato"
+adb shell dumpsys package com.alessandro.seventhday | grep -m1 -i "versionName" | sed 's/^ */[emu] /'
+# 1.1.0: nessuna icona nel telefono e nessun avvio da fuori GENESYS (permesso a firma dell'app GENESYS)
+G7=com.alessandro.seventhday
+log "icona nel telefono: $(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER $G7 | tail -1)"
+log "monkey (come un launcher): $(adb shell monkey -p $G7 -c android.intent.category.LAUNCHER 1 2>&1 | grep -iE 'no activities|events injected' | head -1)"
+log "avvio da fuori (alias): $(adb shell am start -W -n $G7/com.godot.game.GodotAppLauncher 2>&1 | grep -iE 'error|exception|denial|Status' | head -1)"
+log "avvio da fuori (attivita): $(adb shell am start -W -n $G7/com.godot.game.GodotApp 2>&1 | grep -iE 'error|exception|denial|Status' | head -1)"
+sleep 3; shot da-fuori; log "in primo piano: $(adb shell dumpsys activity activities | grep -m1 -i topResumedActivity)"
+adb shell am start -W -n $ACT; sleep 3
 adb logcat -c
-tap "=Gioca" && { sleep 6; shot gioco-6s; sleep 12; shot gioco-18s; adb shell dumpsys activity activities | grep -m3 -i "mResumedActivity\|topResumedActivity"; }
+tap "=Gioca" && { sleep 6; shot gioco-6s; sleep 14; shot gioco-20s; adb shell dumpsys activity activities | grep -m3 -i "mResumedActivity\|topResumedActivity"; }
+adb logcat -d | grep -iE "GENESYS android|godot   :" | head -12
+adb shell input tap 1200 540; sleep 4; shot gioco-tocco
+# secondo livello: anche forzando l'avvio (root sull'emulatore, senza i dati dell'app GENESYS) il gioco mostra il blocco
+adb shell am force-stop $G7; sleep 1
+if adb root >/dev/null 2>&1; then sleep 4; adb wait-for-device
+  log "root: avvio forzato senza GENESYS: $(adb shell am start -W -n $G7/com.godot.game.GodotAppLauncher 2>&1 | grep -iE 'Status|error|denial' | head -1)"
+  sleep 16; shot forzato-blocco; adb logcat -d | grep -iE "GENESYS android" | tail -2
+  adb shell am force-stop $G7; adb unroot >/dev/null 2>&1; sleep 4; adb wait-for-device
+else log "root non disponibile: salto la prova del secondo livello"; fi
 adb logcat -d | grep -iE "seventhday|godot|ActivityTaskManager: START|FATAL|AndroidRuntime: |libc  |DEBUG   :|Abort|SecurityException" | tail -120 > $S/logcat-gioco.txt; tail -60 $S/logcat-gioco.txt
 adb shell am start -W -n $ACT; sleep 3
 adb shell input keyevent KEYCODE_BACK; sleep 2
