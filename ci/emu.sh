@@ -30,10 +30,13 @@ adb shell am start -W -n $ACT; sleep 6; shot lingua; texts
 tap "Italiano"; sleep 1; shot lingua-italiano; tap "Continua"; sleep 3; shot accesso; texts
 tap "Continua con Google"; sleep 15; shot sito-google; texts
 adb shell am start -W -n $ACT; sleep 3; shot ritorno; texts
-EXP=$(( $(date +%s) + 86400*100 ))
-PAY=$(printf '{"p":"google","s":"0123456789abcdef0123456789abcdef","n":"Tester","iat":%s,"exp":%s}' $(date +%s) $EXP | base64 -w0 | tr '+/' '-_' | tr -d '=')
-PASS="GA1.$PAY.testsignaturetestsignature0000"
-adb shell am start -W -n $ACT --es genesys_test_pass "$PASS" --es genesys_test_consent "'{\"v\":\"2026-10-15.2\",\"c\":\"IT\"}'"
+# 0.2.0: pass di prova VERO (2 giorni, identità "Prova GENESYS") dalla cassaforte privata: serve per avere dal server
+# la chiave del gioco cifrato. Consenso con statistiche (prova anche il segnale "attivo questo mese").
+VID=$(gh api "repos/$REPO/releases?per_page=100" --jq '.[] | select(.draft and .name=="genesys-ci-vault") | .id' | head -1)
+AID=$(gh api "repos/$REPO/releases/$VID/assets?per_page=100" --jq '.[] | select(.name=="ci-pass.txt") | .id' | head -1)
+PASS=$(gh api "repos/$REPO/releases/assets/$AID" -H "Accept: application/octet-stream" | tr -d '\n\r ')
+log "pass di prova: ${#PASS} caratteri"
+adb shell am start -W -n $ACT --es genesys_test_pass "$PASS" --es genesys_test_consent "'{\"v\":\"2026-10-15.2\",\"c\":\"IT\",\"s\":true}'"
 sleep 12; shot esplora; texts
 adb shell input swipe 500 1600 500 600 400; sleep 2; shot esplora-giu
 adb shell input swipe 500 600 500 1600 400; sleep 2
@@ -42,7 +45,9 @@ tap "Scarica gratis"; sleep 3; shot permesso; texts
 adb shell appops set $PKG REQUEST_INSTALL_PACKAGES allow; sleep 1
 tap "Annulla" || true; sleep 1
 tap "Scarica gratis"; sleep 20; shot download; texts
-for i in $(seq 1 60); do dump; if grep -qiE "Installa|Install|Gioca|non riuscita|fallita|interrotto" /tmp/ui.xml; then break; fi; sleep 5; done
+for i in $(seq 1 90); do dump; if grep -qiE "Installa|Install|Gioca|non riuscita|fallita|interrotto|Codice|Accedi" /tmp/ui.xml; then break; fi; sleep 5; done
+shot decifrato; texts
+adb logcat -d | grep -iE "genesys|PackageInstaller" | tail -20
 shot dopo-download; texts
 tap "Installa" || tap "Install" || tap "INSTALLA" || tap "INSTALL" || true
 sleep 20; shot installato; texts
