@@ -11,13 +11,24 @@ final class WebAppTests: XCTestCase {
         let a = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); a.name = name; a.lifetime = .keepAlways; add(a)
         note("foto \(name)")
     }
+    /// Labels on screen, read from one accessibility snapshot (no element-by-element queries: they break while pages change).
     func labels(_ app: XCUIApplication, _ max: Int = 40) -> [String] {
-        let q = app.descendants(matching: .any)
         var out: [String] = []
-        for i in 0..<min(q.count, 400) {
-            let e = q.element(boundBy: i)
-            let l = e.label.trimmingCharacters(in: .whitespacesAndNewlines)
+        for line in app.debugDescription.components(separatedBy: "\n") {
+            guard let r = line.range(of: "label: '") else { continue }
+            var l = String(line[r.upperBound...]); if let e = l.range(of: "'", options: .backwards) { l = String(l[..<e.lowerBound]) }
+            l = l.trimmingCharacters(in: .whitespaces)
             if !l.isEmpty && !out.contains(l) { out.append(l) }
+            if out.count >= max { break }
+        }
+        return out
+    }
+    func ids(_ app: XCUIApplication, _ max: Int = 40) -> [String] {
+        var out: [String] = []
+        for line in app.debugDescription.components(separatedBy: "\n") {
+            guard let r = line.range(of: "identifier: '") else { continue }
+            var l = String(line[r.upperBound...]); if let e = l.range(of: "'") { l = String(l[..<e.lowerBound]) }
+            if !l.isEmpty && !out.contains(l) && l.count < 60 { out.append(l) }
             if out.count >= max { break }
         }
         return out
@@ -25,25 +36,24 @@ final class WebAppTests: XCTestCase {
     @discardableResult
     func tapAny(_ app: XCUIApplication, _ names: [String], wait: TimeInterval = 6) -> Bool {
         let end = Date().addingTimeInterval(wait)
+        let pred = NSPredicate(format: "label IN %@ OR identifier IN %@", names, names)
         repeat {
-            for n in names {
-                for e in [app.buttons[n], app.cells[n], app.staticTexts[n], app.otherElements[n], app.icons[n]] where e.exists && e.isHittable {
-                    e.tap(); note("tocco '\(n)'"); return true
-                }
-            }
-            usleep(400_000)
+            let e = app.descendants(matching: .any).matching(pred).firstMatch
+            if e.exists && e.isHittable { let l = e.label; e.tap(); note("tocco '\(l)'"); return true }
+            usleep(500_000)
         } while Date() < end
-        note("non trovato: \(names) · visibili: \(labels(app, 25))")
+        note("non trovato: \(names) · etichette: \(labels(app, 25)) · id: \(ids(app, 20))")
         return false
     }
 
     func testWebAppOnIPhone() throws {
         continueAfterFailure = true
-        safari.launch()
-        sleep(4)
-        tapAny(safari, ["Continue", "Continua", "Not Now", "Close"], wait: 3)
-        safari.open(URL(string: url)!)
-        sleep(12)
+        // run.sh has already opened the page in Safari (simctl openurl): bring Safari to the front without restarting it
+        safari.activate()
+        sleep(3)
+        tapAny(safari, ["Continue", "Continua", "Not Now", "Close"], wait: 2)
+        if !safari.debugDescription.contains("ios-test") && !safari.debugDescription.contains("GENESYS") { note("pagina non aperta: la apro"); safari.open(URL(string: url)!); sleep(12) }
+        sleep(6)
         snap("1-safari")
         note("Safari: \(labels(safari, 30))")
         // Share -> Add to Home Screen -> Add

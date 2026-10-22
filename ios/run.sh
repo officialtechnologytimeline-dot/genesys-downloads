@@ -13,9 +13,10 @@ xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b >/dev/null; echo "
 open -a Simulator --args -CurrentDeviceUDID "$UDID" || true
 mkdir -p /tmp/shots
 ( i=0; while true; do i=$((i+1)); xcrun simctl io "$UDID" screenshot --type=jpeg "/tmp/shots/$(printf %03d $i)-$(date +%H%M%S).jpg" >/dev/null 2>&1; sleep 12; done ) & LOOP=$!
+xcrun simctl openurl "$UDID" "$URL"; echo "pagina aperta in Safari"
 cd ios && xcodegen generate --quiet && echo "progetto generato"
 TEST_RUNNER_GENESYS_URL="$URL" xcodebuild test -project GenesysSim.xcodeproj -scheme SimUITests -destination "id=$UDID" -resultBundlePath /tmp/R.xcresult CODE_SIGNING_ALLOWED=NO > /tmp/xcb.log 2>&1; RC=$?
-grep -E "\[ios\]|error:|Test Case|\*\* TEST" /tmp/xcb.log | cut -c1-400
+grep -E "\[ios\]|error:|Test Case|\*\* TEST" /tmp/xcb.log | cut -c1-600
 [ $RC -ne 0 ] && tail -40 /tmp/xcb.log
 kill $LOOP 2>/dev/null
 mkdir -p /tmp/shots/test && (xcrun xcresulttool export attachments --path /tmp/R.xcresult --output-path /tmp/shots/test >/dev/null 2>&1 || true)
