@@ -38,6 +38,7 @@ PASS=$(gh api "repos/$REPO/releases/assets/$AID" -H "Accept: application/octet-s
 log "pass di prova: ${#PASS} caratteri"
 adb shell am start -W -n $ACT --es genesys_test_pass "$PASS" --es genesys_test_consent "'{\"v\":\"2026-10-15.2\",\"c\":\"IT\",\"s\":true}'"
 sleep 12; shot esplora; texts
+dump; grep -q "Novità di GENESYS" /tmp/ui.xml && log "ERRORE: novità mostrate alla prima installazione" || log "prima installazione: nessuna finestra novità (giusto)"
 adb shell input swipe 500 1600 500 600 400; sleep 2; shot esplora-giu
 adb shell input swipe 500 600 500 1600 400; sleep 2
 tap "7TH DAY"; sleep 4; shot 7thday; texts
@@ -73,7 +74,17 @@ if adb root >/dev/null 2>&1; then sleep 4; adb wait-for-device
   adb shell am force-stop $G7; adb unroot >/dev/null 2>&1; sleep 4; adb wait-for-device
 else log "root non disponibile: salto la prova del secondo livello"; fi
 adb logcat -d | grep -iE "seventhday|godot|ActivityTaskManager: START|FATAL|AndroidRuntime: |libc  |DEBUG   :|Abort|SecurityException" | tail -120 > $S/logcat-gioco.txt; tail -60 $S/logcat-gioco.txt
-adb shell am start -W -n $ACT; sleep 3
+# 0.2.1: novità una sola volta dopo l'aggiornamento (simulo un utente che arriva dalla 0.2.0)
+adb shell am force-stop $PKG; sleep 1
+adb shell am start -W -n $ACT --es genesys_test_seen 0.2.0; sleep 5; shot novita; texts
+dump; grep -q "Novità di GENESYS 0.2.1" /tmp/ui.xml && log "novità mostrate: ok" || log "ERRORE: novità non mostrate"
+tap "Ho capito"; sleep 2
+adb shell am force-stop $PKG; sleep 1; adb shell am start -W -n $ACT; sleep 5
+dump; grep -q "Novità di GENESYS" /tmp/ui.xml && log "ERRORE: novità mostrate due volte" || log "riaperta: novità non ripetute (giusto)"
+adb shell am force-stop $PKG; sleep 1
+adb shell am start -W -n $ACT --es genesys_test_seen 0.2.0 --es genesys_test_language ar; sleep 5; shot novita-arabo
+tap "حسنًا" || true; sleep 2
+adb shell am start -W -n $ACT --es genesys_test_language it; sleep 3
 adb shell input keyevent KEYCODE_BACK; sleep 2
 tap "Impostazioni"; sleep 2; shot impostazioni; texts
 tap "La mia libreria"; sleep 2; shot libreria; texts
