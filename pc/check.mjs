@@ -35,6 +35,18 @@ const alpha = await page.evaluate(() => { const x = document.querySelector('.alp
 check(!!alpha, 'casella codice alpha: ' + alpha);
 await page.screenshot({path: `shots/${kind}-3-alpha.png`});
 await page.evaluate(() => document.getElementById('detail-dialog').close());
+// 0.5.3: novità di GENESYS (una volta dopo l'aggiornamento) e dei giochi (dal catalogo firmato)
+const news = await page.evaluate(() => ({pending: window.GenesysWhatsNew ? window.GenesysWhatsNew.pending('0.5.2', state.version, true).map(e => e.version) : null, first: window.GenesysWhatsNew ? window.GenesysWhatsNew.pending('', state.version, false).length : null, game: (state.games.find(g => g.id === '7th-day') || {}).news?.version || null}));
+console.log('novità:', JSON.stringify(news));
+check(Array.isArray(news.pending) && news.pending[0] === version && news.first === 0, 'novità di GENESYS ' + version + ' (non alla prima installazione)');
+check(news.game === '1.1.0', 'novità di 7TH DAY 1.1.0 nel catalogo');
+await page.evaluate(() => { state.settings.whatsNewSeen = '0.5.2'; state.settings.onboardingComplete = true; document.querySelectorAll('dialog[open]').forEach(d => d.close()); showWhatsNew(); });
+await page.waitForTimeout(1200);
+const wtitle = await page.evaluate(() => document.getElementById('whatsnew-dialog').open ? document.getElementById('whatsnew-title').textContent : null);
+check(!!wtitle, 'finestra novità: ' + wtitle);
+await page.screenshot({path: `shots/${kind}-3b-novita.png`});
+await page.evaluate(() => document.getElementById('whatsnew-dialog').close());
+await page.waitForTimeout(800);
 await page.evaluate(() => showDetail('7th-day'));
 await page.waitForTimeout(1200);
 await page.screenshot({path: `shots/${kind}-4-7thday.png`});
