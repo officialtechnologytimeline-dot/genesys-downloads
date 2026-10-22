@@ -45,7 +45,7 @@ tap "Continua con Google"; sleep 15; shot sito-google; texts
 adb shell am start -W -n $ACT; sleep 3; shot ritorno; texts
 # 0.2.0: pass di prova VERO (2 giorni, identità "Prova GENESYS") dalla cassaforte privata: serve per avere dal server
 # la chiave del gioco cifrato. Consenso con statistiche (prova anche il segnale "attivo questo mese").
-VID=$(gh api "repos/$REPO/releases?per_page=100" --jq '.[] | select(.draft and .name=="genesys-ci-vault") | .id' | head -1)
+VID=$(echo 420089377)
 AID=$(gh api "repos/$REPO/releases/$VID/assets?per_page=100" --jq '.[] | select(.name=="ci-pass.txt") | .id' | head -1)
 PASS=$(gh api "repos/$REPO/releases/assets/$AID" -H "Accept: application/octet-stream" | tr -d '\n\r ')
 log "pass di prova: ${#PASS} caratteri"
