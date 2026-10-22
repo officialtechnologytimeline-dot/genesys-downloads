@@ -89,7 +89,8 @@ final class WebAppTests: XCTestCase {
         let start = Date()
         var finished: Date? = nil
         let keys = [" HOP", "PROVA", "[gioco]", "install", "salvato", "ritorno", "chiave", "ERRORE", "accesso", "standalone"]
-        while Date().timeIntervalSince(start) < 18 * 60 {
+        let watch = Double(ProcessInfo.processInfo.environment["GENESYS_WATCH"] ?? "1080") ?? 1080
+        while Date().timeIntervalSince(start) < watch {
             sleep(10)
             var tree = ""
             for c in candidates {

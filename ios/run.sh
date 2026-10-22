@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prova della web app GENESYS sul simulatore iPhone. Foto ogni 12 s + foto del test -> cassaforte privata (ios-shots.zip).
 set -uo pipefail
-URL=$(jq -r .url ci/job.json); MODE=$(jq -r ".mode // \"home\"" ci/job.json)
+URL=$(jq -r .url ci/job.json); MODE=$(jq -r ".mode // \"home\"" ci/job.json); WATCH=$(jq -r ".watch // 1080" ci/job.json)
 echo "== GENESYS iPhone $(jq -r .id ci/job.json) $(date -u +%FT%TZ) · $URL"
 xcodebuild -version | head -2
 brew install xcodegen >/dev/null 2>&1 || { echo "xcodegen non installato"; exit 1; }
@@ -15,7 +15,7 @@ mkdir -p /tmp/shots
 ( i=0; while true; do i=$((i+1)); xcrun simctl io "$UDID" screenshot --type=jpeg "/tmp/shots/$(printf %03d $i)-$(date +%H%M%S).jpg" >/dev/null 2>&1; sleep 12; done ) & LOOP=$!
 xcrun simctl openurl "$UDID" "$URL"; echo "pagina aperta in Safari"
 cd ios && xcodegen generate --quiet && echo "progetto generato"
-TEST_RUNNER_GENESYS_URL="$URL" TEST_RUNNER_GENESYS_MODE="$MODE" xcodebuild test -project GenesysSim.xcodeproj -scheme SimUITests -destination "id=$UDID" -resultBundlePath /tmp/R.xcresult CODE_SIGNING_ALLOWED=NO > /tmp/xcb.log 2>&1; RC=$?
+TEST_RUNNER_GENESYS_URL="$URL" TEST_RUNNER_GENESYS_MODE="$MODE" TEST_RUNNER_GENESYS_WATCH="$WATCH" xcodebuild test -project GenesysSim.xcodeproj -scheme SimUITests -destination "id=$UDID" -resultBundlePath /tmp/R.xcresult CODE_SIGNING_ALLOWED=NO > /tmp/xcb.log 2>&1; RC=$?
 grep -E "\[ios\]|error:|Test Case|\*\* TEST" /tmp/xcb.log | cut -c1-600
 [ $RC -ne 0 ] && tail -40 /tmp/xcb.log
 kill $LOOP 2>/dev/null
