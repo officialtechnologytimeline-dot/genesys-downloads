@@ -32,7 +32,9 @@ await page.screenshot({path: `shots/${kind}-2-catalogo.png`});
 await page.evaluate(() => showDetail('primal-dominion'));
 await page.waitForTimeout(1500);
 const alpha = await page.evaluate(() => { const x = document.querySelector('.alpha-box'); return x ? x.innerText.replace(/\s+/g, ' ') : null; });
-check(!!alpha, 'casella codice alpha: ' + alpha);
+check(!!alpha && /Closed Beta/.test(alpha), 'casella Closed Beta: ' + alpha);
+const eyebrow = await page.evaluate(() => { const e = document.querySelector('#detail-dialog .eyebrow'); return e ? e.textContent : null; });
+check(eyebrow === 'CLOSED BETA', 'stato nella scheda: ' + eyebrow);
 await page.screenshot({path: `shots/${kind}-3-alpha.png`});
 await page.evaluate(() => document.getElementById('detail-dialog').close());
 // 0.5.3: novità di GENESYS (una volta dopo l'aggiornamento) e dei giochi (dal catalogo firmato)
@@ -40,13 +42,23 @@ const news = await page.evaluate(() => ({pending: window.GenesysWhatsNew ? windo
 console.log('novità:', JSON.stringify(news));
 check(Array.isArray(news.pending) && news.pending[0] === version && news.first === 0, 'novità di GENESYS ' + version + ' (non alla prima installazione)');
 check(news.game === '1.1.0', 'novità di 7TH DAY 1.1.0 nel catalogo');
-await page.evaluate(() => { state.settings.whatsNewSeen = '0.5.2'; state.settings.onboardingComplete = true; document.querySelectorAll('dialog[open]').forEach(d => d.close()); showWhatsNew(); });
+await page.evaluate(() => { state.settings.whatsNewSeen = '0.5.3'; state.settings.onboardingComplete = true; document.querySelectorAll('dialog[open]').forEach(d => d.close()); showWhatsNew(); });
 await page.waitForTimeout(1200);
 const wtitle = await page.evaluate(() => document.getElementById('whatsnew-dialog').open ? document.getElementById('whatsnew-title').textContent : null);
 check(!!wtitle, 'finestra novità: ' + wtitle);
 await page.screenshot({path: `shots/${kind}-3b-novita.png`});
 await page.evaluate(() => document.getElementById('whatsnew-dialog').close());
 await page.waitForTimeout(800);
+// 0.5.4: "Closed Beta" sulla locandina al posto dello stato, "100% gratis, senza pubblicità" nelle impostazioni
+const card = await page.evaluate(() => { const c = [...document.querySelectorAll('.card-status')].map(x => x.textContent); return {beta: c.filter(x => x === 'Closed Beta').length, old: c.filter(x => /ALPHA/i.test(x)).length}; });
+check(card.beta === 1 && card.old === 0, 'locandine: Closed Beta ' + card.beta + ', alpha ' + card.old);
+await page.evaluate(() => setView('settings'));
+await page.waitForTimeout(800);
+const free = await page.evaluate(() => { const f = document.querySelector('.free-note'); return f ? f.textContent : null; });
+check(!!free, 'impostazioni: ' + free);
+await page.screenshot({path: `shots/${kind}-3c-impostazioni.png`});
+await page.evaluate(() => setView('catalog'));
+await page.waitForTimeout(600);
 await page.evaluate(() => showDetail('7th-day'));
 await page.waitForTimeout(1200);
 await page.screenshot({path: `shots/${kind}-4-7thday.png`});
