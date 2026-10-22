@@ -1,0 +1,31 @@
+name: GenesysSim
+options:
+  bundleIdPrefix: com.technologytimeline.sim
+  deploymentTarget:
+    iOS: "17.0"
+targets:
+  Host:
+    type: application
+    platform: iOS
+    sources: [Host]
+    info:
+      path: Host/Info.plist
+      properties:
+        UILaunchScreen: {}
+        CFBundleDisplayName: SimHost
+  SimUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [SimUITests]
+    dependencies:
+      - target: Host
+    info:
+      path: SimUITests/Info.plist
+schemes:
+  SimUITests:
+    build:
+      targets:
+        Host: all
+        SimUITests: [test]
+    test:
+      targets: [SimUITests]

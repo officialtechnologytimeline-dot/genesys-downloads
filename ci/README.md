@@ -1,5 +1,4 @@
-# GENESYS per Android — compilazione automatica
+# GENESYS — prove automatiche (ramo ios-ci)
 
-Questo ramo (`android-ci`) compila e pubblica l'app GENESYS per Android sui computer gratuiti di GitHub.
-Il codice e la chiave di firma sono cifrati (`payload.enc`); la chiave per aprirli sta in una release in bozza,
-visibile solo al proprietario del repository. Il ramo `main` e i download esistenti non vengono toccati.
+Prova della web app GENESYS per iPhone sul simulatore iPhone dei computer macOS gratuiti di GitHub.
+Usa solo la copia di prova del sito (`ios-test.genesys-site.pages.dev`). Le foto vanno nella release in bozza privata.
