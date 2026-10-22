@@ -8,7 +8,16 @@ log(){ echo "[emu] $*"; }
 shot(){ N=$((N+1)); local f=$(printf "%s/%02d-%s.png" $S $N "$1"); adb exec-out screencap -p > "$f"; log "foto $f"; }
 dump(){ for i in 1 2 3 4 5; do adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 && adb shell cat /sdcard/ui.xml > /tmp/ui.xml && return 0; sleep 2; done; return 1; }
 # tap the first element whose text or description contains $1
-tap(){ dump || { log "dump fallito"; return 1; }
+# the emulator sometimes shows "Pixel Launcher isn't responding" over everything: answer "Wait"
+anr(){ grep -q "isn't responding" /tmp/ui.xml 2>/dev/null || return 0
+  local xy; xy=$(python3 -c "
+import re,xml.etree.ElementTree as ET
+for n in ET.parse('/tmp/ui.xml').iter('node'):
+    if (n.get('text') or '') in ('Wait','Close app'):
+        a,b,c,d=map(int,re.findall(r'\\d+',n.get('bounds')));print((a+c)//2,(b+d)//2)
+        if n.get('text')=='Wait': break
+" | tail -1); [ -n "$xy" ] && { log "finestra 'non risponde' chiusa"; adb shell input tap $xy; sleep 2; dump; }; }
+tap(){ dump || { log "dump fallito"; return 1; }; anr
   local xy; xy=$(python3 - "$1" <<'PY'
 import sys,re,xml.etree.ElementTree as ET
 want=sys.argv[1]; exact=want.startswith('='); want=want.lstrip('='); t=ET.parse('/tmp/ui.xml')
@@ -21,7 +30,7 @@ PY
   [ -n "$xy" ] || { log "non trovato: $1"; return 1; }
   log "tocco '$1' a $xy"; adb shell input tap $xy; }
 waitfor(){ for i in $(seq 1 ${2:-30}); do dump && grep -q "$1" /tmp/ui.xml && return 0; sleep 2; done; log "attesa scaduta: $1"; return 1; }
-texts(){ dump && python3 -c "
+texts(){ dump && anr; python3 -c "
 import xml.etree.ElementTree as ET
 print(' | '.join(n.get('text') for n in ET.parse('/tmp/ui.xml').iter('node') if n.get('text'))[:1500])"; }
 
@@ -38,7 +47,7 @@ PASS=$(gh api "repos/$REPO/releases/assets/$AID" -H "Accept: application/octet-s
 log "pass di prova: ${#PASS} caratteri"
 adb shell am start -W -n $ACT --es genesys_test_pass "$PASS" --es genesys_test_consent "'{\"v\":\"2026-10-15.2\",\"c\":\"IT\",\"s\":true}'"
 sleep 12; shot esplora; texts
-dump; grep -q "Novità di GENESYS" /tmp/ui.xml && log "ERRORE: novità mostrate alla prima installazione" || log "prima installazione: nessuna finestra novità (giusto)"
+dump; anr; grep -q "Novità di GENESYS" /tmp/ui.xml && log "ERRORE: novità mostrate alla prima installazione" || log "prima installazione: nessuna finestra novità (giusto)"
 adb shell input swipe 500 1600 500 600 400; sleep 2; shot esplora-giu
 adb shell input swipe 500 600 500 1600 400; sleep 2
 tap "7TH DAY"; sleep 4; shot 7thday; texts
@@ -77,10 +86,17 @@ adb logcat -d | grep -iE "seventhday|godot|ActivityTaskManager: START|FATAL|Andr
 # 0.2.1: novità una sola volta dopo l'aggiornamento (simulo un utente che arriva dalla 0.2.0)
 adb shell am force-stop $PKG; sleep 1
 adb shell am start -W -n $ACT --es genesys_test_seen 0.2.0; sleep 5; shot novita; texts
-dump; grep -q "Novità di GENESYS 0.2.1" /tmp/ui.xml && log "novità mostrate: ok" || log "ERRORE: novità non mostrate"
+dump; anr; grep -q "Novità di GENESYS 0.2.1" /tmp/ui.xml && log "novità mostrate: ok" || log "ERRORE: novità non mostrate"
 tap "Ho capito"; sleep 2
 adb shell am force-stop $PKG; sleep 1; adb shell am start -W -n $ACT; sleep 5
-dump; grep -q "Novità di GENESYS" /tmp/ui.xml && log "ERRORE: novità mostrate due volte" || log "riaperta: novità non ripetute (giusto)"
+dump; anr; grep -q "Novità di GENESYS" /tmp/ui.xml && log "ERRORE: novità mostrate due volte" || log "riaperta: novità non ripetute (giusto)"
+# novità dei giochi: 7TH DAY passato dalla 1.0.1 (code 31) alla 1.1.0
+adb shell am force-stop $PKG; sleep 1
+adb shell am start -W -n $ACT --es genesys_test_gamever 7th-day:31; sleep 6; shot novita-gioco; texts
+dump; anr; grep -q "Novità di 7TH DAY 1.1.0" /tmp/ui.xml && log "novità del gioco mostrate: ok" || log "ERRORE: novità del gioco non mostrate"
+tap "Ho capito"; sleep 2
+adb shell am force-stop $PKG; sleep 1; adb shell am start -W -n $ACT; sleep 5
+dump; anr; grep -q "Novità di 7TH DAY" /tmp/ui.xml && log "ERRORE: novità del gioco ripetute" || log "riaperta: novità del gioco non ripetute (giusto)"
 adb shell am force-stop $PKG; sleep 1
 adb shell am start -W -n $ACT --es genesys_test_seen 0.2.0 --es genesys_test_language ar; sleep 5; shot novita-arabo
 tap "حسنًا" || true; sleep 2
