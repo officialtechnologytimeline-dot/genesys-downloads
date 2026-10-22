@@ -1,4 +1,4 @@
-# GENESYS — prove automatiche (ramo ios-ci)
+# GENESYS — prova del software per PC (ramo pc-ci)
 
-Prova della web app GENESYS per iPhone sul simulatore iPhone dei computer macOS gratuiti di GitHub.
-Usa solo la copia di prova del sito (`ios-test.genesys-site.pages.dev`). Le foto vanno nella release in bozza privata.
+Scarica gli installer pubblicati su GitHub e li prova su Windows, Linux, Mac Intel e Mac Apple Silicon
+(computer gratuiti di GitHub). Le foto vanno nella release in bozza privata.

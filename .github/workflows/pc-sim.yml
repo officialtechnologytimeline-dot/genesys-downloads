@@ -1,0 +1,40 @@
+# GENESYS per PC: prova automatica degli installer pubblicati su computer veri e gratuiti di GitHub
+# (Windows, Linux, Mac Intel, Mac Apple Silicon). Installa, avvia, guarda l'interfaccia, legge il canale firmato,
+# apre la pagina di un gioco in alpha chiusa. Foto e risultati nella cassaforte privata.
+name: pc-sim
+on:
+  push:
+    branches: [pc-ci]
+permissions:
+  contents: write
+concurrency:
+  group: pc-sim
+  cancel-in-progress: true
+jobs:
+  pc:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: windows-latest, kind: windows}
+          - {os: ubuntu-latest, kind: linux}
+          - {os: macos-13, kind: mac-intel}
+          - {os: macos-14, kind: mac-apple}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      KIND: ${{ matrix.kind }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prova
+        shell: bash
+        run: bash pc/run.sh 2>&1 | tee ci-log-$KIND.txt; exit ${PIPESTATUS[0]}
+      - name: Log
+        if: always()
+        shell: bash
+        run: cp ci-log-$KIND.txt ci-log.txt; sed -i.bak "s/\"id\":\"\([a-z0-9]*\)\"/\"id\":\"\1-$KIND\"/" ci/job.json; bash ci/log.sh
