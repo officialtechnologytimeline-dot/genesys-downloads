@@ -16,9 +16,12 @@ echo "scaricato $F $(wc -c < "dl/$F") byte · sha256 $([ "$WANT" = "$GOT" ] && e
 PROF="$PWD/prof"
 case "$KIND" in
   windows)
-    ./dl/$F /S; sleep 25
-    EXE=$(find "$LOCALAPPDATA/Programs" "$PROGRAMFILES" -iname "GENESYS.exe" 2>/dev/null | head -1)
+    timeout 240 ./dl/$F /S; echo "installer: uscita $?"; sleep 10
+    LA=$(cygpath -u "$LOCALAPPDATA"); PF=$(cygpath -u "$PROGRAMFILES")
+    ls "$LA/Programs" "$PF" 2>/dev/null | grep -i genesys
+    EXE=$(find "$LA/Programs" "$PF" -maxdepth 3 -iname "GENESYS.exe" 2>/dev/null | head -1)
     echo "installato: $EXE"
+    [ -n "$EXE" ] || { echo "NON INSTALLATO"; exit 1; }
     "$EXE" --remote-debugging-port=9222 --user-data-dir="$(cygpath -w "$PROF" 2>/dev/null || echo "$PROF")" > app.log 2>&1 &
     ;;
   linux)
