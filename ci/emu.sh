@@ -63,9 +63,10 @@ print('[emu] icone smartphone sulle locandine:', desc.count('Smartphone'), '· i
 print('[emu] riquadri verdi sulle locandine:', sum(1 for t in txt if t.startswith('✓')))
 PY
 adb shell input swipe 500 1600 500 600 400; sleep 2; shot esplora-giu; texts
-dump; grep -q "Closed Beta" /tmp/ui.xml && log "Closed Beta visibile" || { adb shell input swipe 500 1600 500 600 400; sleep 2; shot esplora-giu2; dump; grep -q "Closed Beta" /tmp/ui.xml && log "Closed Beta visibile" || log "ERRORE: Closed Beta non trovato"; }
+cb=0; for k in 1 2 3 4 5 6 7; do dump; if grep -q "Closed Beta" /tmp/ui.xml; then cb=1; break; fi; adb shell input swipe 500 1600 500 700 400; sleep 2; done
+[ $cb = 1 ] && { log "Closed Beta visibile al posto dello stato"; shot closed-beta; } || log "ERRORE: Closed Beta non trovato"
 tap "PRIMAL" && { sleep 3; shot primal; texts; adb shell input keyevent KEYCODE_BACK; sleep 2; }
-adb shell input swipe 500 600 500 1600 400; sleep 1; adb shell input swipe 500 600 500 1600 400; sleep 2
+for k in 1 2 3 4 5 6 7 8; do adb shell input swipe 500 600 500 1600 300; sleep 1; done
 for g in "Luna Carnival" "Minuus" "Mini-Kart"; do
   for k in 1 2 3; do tap "=$g" && break; adb shell input swipe 500 1500 500 800 400; sleep 1; done
   sleep 3; dump; if grep -q "Questo gioco si gioca su PC" /tmp/ui.xml; then log "ERRORE: $g ancora solo PC"; else log "$g: gioco per smartphone (giusto)"; fi
@@ -129,8 +130,8 @@ dump; anr; grep -q "Novità di 7TH DAY" /tmp/ui.xml && log "ERRORE: novità del 
 adb shell am force-stop $PKG; sleep 1
 adb shell am start -W -n $ACT --es genesys_test_seen 0.2.0 --es genesys_test_language ar; sleep 5; shot novita-arabo
 tap "حسنًا" || true; sleep 2
-adb shell am start -W -n $ACT --es genesys_test_language it; sleep 3
-adb shell input keyevent KEYCODE_BACK; sleep 2
+adb shell am force-stop $PKG; sleep 1
+adb shell am start -W -n $ACT --es genesys_test_language it; sleep 5; dump; anr
 tap "Impostazioni"; sleep 2; shot impostazioni; texts
 dump; grep -q "100% gratis, senza pubblicità" /tmp/ui.xml && log "impostazioni: 100% gratis senza pubblicità ok" || log "ERRORE: manca 100% gratis nelle impostazioni"
 tap "La mia libreria"; sleep 2; shot libreria; texts
