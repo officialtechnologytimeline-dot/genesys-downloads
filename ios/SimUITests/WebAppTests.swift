@@ -56,6 +56,9 @@ final class WebAppTests: XCTestCase {
         sleep(6)
         snap("1-safari")
         note("Safari: \(labels(safari, 30))")
+        let mode = ProcessInfo.processInfo.environment["GENESYS_MODE"] ?? "home"
+        note("modo: \(mode)")
+        if mode != "safari" {
         // Share -> Add to Home Screen -> Add
         if !tapAny(safari, ["ShareButton", "Share", "Condividi"], wait: 8) {
             tapAny(safari, ["TabBarItemTitle", "Address"], wait: 3); sleep(1); tapAny(safari, ["ShareButton", "Share"], wait: 5)
@@ -77,6 +80,7 @@ final class WebAppTests: XCTestCase {
         }
         note(opened ? "aperta l'icona GENESYS" : "icona GENESYS non trovata · \(labels(springboard, 30))")
         snap("5-aperta")
+        } // fine "home"
         // watch the web app run its automatic test (up to 18 minutes). The page text is read from the accessibility tree.
         let candidates = ["com.apple.webapp", "com.apple.WebSheet", "com.apple.mobilesafari"]
         sleep(5)
