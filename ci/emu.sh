@@ -41,11 +41,13 @@ dump; python3 - <<'PY'
 import xml.etree.ElementTree as ET
 n=list(ET.parse('/tmp/ui.xml').iter('node'))
 sel=[x.get('text') for x in n if x.get('text')=='●']
+import re
 btn=[x for x in n if (x.get('text') or '') in ('Continua','Continue','Continuar','Weiter','Continuer')]
-en=[x.get('enabled') for x in btn]
+par={c:p for p in n for c in p}
+en=[(x.get('enabled'), par.get(x).get('enabled') if par.get(x) is not None else None) for x in btn]
 print('[emu] lingua: preselezionate', len(sel), '· Continua attivo prima della scelta:', en)
 PY
-tap "=Continua" || tap "=Continue" || true; sleep 2; dump; grep -q "Accedi con Google\|Sign in with Google" /tmp/ui.xml && log "ERRORE: si passa senza scegliere la lingua" || log "senza scelta non si passa (giusto)"
+tap "=Continue" || tap "=Continua" || true; sleep 2; dump; grep -q "Accedi con Google\|Sign in with Google" /tmp/ui.xml && log "ERRORE: si passa senza scegliere la lingua" || log "senza scelta non si passa (giusto)"
 tap "Italiano"; sleep 1; shot lingua-italiano; tap "Continua"; sleep 3; shot accesso; texts
 # 0.2.2: logo con la sigla del sito, niente "Mondi originali", "100% gratis, senza pubblicità" nell'accesso
 dump; grep -q "NEXT-GEN AI GAMING" /tmp/ui.xml && log "accesso: sigla sotto il logo ok" || log "ERRORE: sigla assente nell'accesso"
@@ -78,18 +80,22 @@ cb=0; for k in 1 2 3 4 5 6 7; do dump; if grep -q "Closed Beta" /tmp/ui.xml; the
 tap "PRIMAL" && { sleep 3; shot primal; texts; adb shell input keyevent KEYCODE_BACK; sleep 2; }
 for k in 1 2 3 4 5 6 7 8; do adb shell input swipe 500 600 500 1600 300; sleep 1; done
 # 0.2.3: Little Shark (in lavorazione, smartphone) con genere e descrizione dal catalogo nella lingua scelta
-for k in 1 2 3; do tap "=Little Shark" && break; adb shell input swipe 500 1500 500 800 400; sleep 1; done
-sleep 3; dump; grep -q "Nuota con un piccolo squalo" /tmp/ui.xml && log "Little Shark: descrizione in italiano (lingua scelta) ok" || log "ERRORE: descrizione di Little Shark"
-grep -q "Avventura · Arcade" /tmp/ui.xml && log "Little Shark: genere in italiano ok" || log "ERRORE: genere di Little Shark"
-grep -q "Questo gioco si gioca su PC" /tmp/ui.xml && log "ERRORE: Little Shark solo PC" || log "Little Shark: gioco per smartphone (giusto)"
-shot little-shark; adb shell input keyevent KEYCODE_BACK; sleep 2
+# ogni gioco: si riapre GENESYS dall'inizio della lista, si cerca il gioco, si apre la pagina, si torna indietro solo se aperta
+opengame(){ adb shell am force-stop $PKG; sleep 1; adb shell am start -W -n $ACT >/dev/null; sleep 5
+  for k in 1 2 3 4 5; do tap "=$1" && return 0; adb shell input swipe 500 1500 500 800 400; sleep 1; done; return 1; }
+if opengame "Little Shark"; then
+  sleep 3; dump; grep -q "Nuota con un piccolo squalo" /tmp/ui.xml && log "Little Shark: descrizione in italiano (lingua scelta) ok" || log "ERRORE: descrizione di Little Shark"
+  grep -q "Avventura · Arcade" /tmp/ui.xml && log "Little Shark: genere in italiano ok" || log "ERRORE: genere di Little Shark"
+  grep -q "Questo gioco si gioca su PC" /tmp/ui.xml && log "ERRORE: Little Shark solo PC" || log "Little Shark: gioco per smartphone (giusto)"
+  shot little-shark
+else log "ERRORE: Little Shark non trovato nella lista"; fi
 for g in "Luna Carnival" "Minuus" "Mini-Kart"; do
-  for k in 1 2 3; do tap "=$g" && break; adb shell input swipe 500 1500 500 800 400; sleep 1; done
-  sleep 3; dump; if grep -q "Questo gioco si gioca su PC" /tmp/ui.xml; then log "ERRORE: $g ancora solo PC"; else log "$g: gioco per smartphone (giusto)"; fi
-  grep -q 'content-desc="" .*Smartphone\|text="Smartphone"' /tmp/ui.xml && log "$g: icona smartphone nella pagina" || true
-  shot "$(echo $g | tr ' A-Z' '-a-z')"; adb shell input keyevent KEYCODE_BACK; sleep 2
-  adb shell input swipe 500 600 500 1600 400; sleep 1; adb shell input swipe 500 600 500 1600 400; sleep 1
+  if opengame "$g"; then sleep 3; dump
+    if grep -q "Questo gioco si gioca su PC" /tmp/ui.xml; then log "ERRORE: $g ancora solo PC"; else log "$g: gioco per smartphone (giusto)"; fi
+    shot "$(echo $g | tr ' A-Z' '-a-z')"
+  else log "ERRORE: $g non trovato nella lista"; fi
 done
+adb shell am force-stop $PKG; sleep 1; adb shell am start -W -n $ACT >/dev/null; sleep 5
 tap "7TH DAY"; sleep 4; shot 7thday; texts
 tap "Scarica gratis"; sleep 3; shot permesso; texts
 adb shell appops set $PKG REQUEST_INSTALL_PACKAGES allow; sleep 1
