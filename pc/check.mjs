@@ -23,6 +23,18 @@ check((b.games || []).some(g => g.id === '7th-day' && g.available), '7TH DAY dis
 check((b.games || []).some(g => g.alpha), 'gioco in alpha chiusa nel catalogo');
 const expect = {windows: ['win32', 'x64'], linux: ['linux', 'x64'], 'mac-intel': ['darwin', 'x64'], 'mac-apple': ['darwin', 'arm64']}[kind];
 check(b.platform === expect[0] && b.arch === expect[1], `sistema ${b.platform} ${b.arch}`);
+// 0.5.5: prima apertura: la lingua la sceglie l'utente (nessuna preselezione, "Continua" spento, non si salta)
+const lang0 = await page.evaluate(() => { const d = document.getElementById('language-dialog'); return d ? {open: d.open, selected: document.querySelectorAll('.language-option.selected').length, n: document.querySelectorAll('.language-option').length, disabled: document.getElementById('language-ok').disabled} : null; });
+check(!!lang0 && lang0.open && lang0.selected === 0 && lang0.n === 30 && lang0.disabled, 'lingua obbligatoria alla prima apertura: ' + JSON.stringify(lang0));
+await page.screenshot({path: `shots/${kind}-0-lingua.png`});
+await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+check(await page.evaluate(() => document.getElementById('language-dialog').open), 'Esc non salta la scelta della lingua');
+const refused = await page.evaluate(async () => { const r = await window.genesys.launch('7th-day'); return r && !r.ok ? r.error : 'avviato'; });
+check(refused !== 'avviato', 'senza lingua scelta nessun gioco parte: ' + refused);
+await page.click('.language-option[data-code="en"]'); await page.waitForTimeout(300);
+await page.click('#language-ok'); await page.waitForTimeout(1200);
+const chosen = await page.evaluate(() => ({lang: document.documentElement.lang, open: document.getElementById('language-dialog').open, settings: state.settings.language, confirmed: state.settings.languageConfirmed}));
+check(chosen.lang === 'en' && !chosen.open && chosen.settings === 'en' && chosen.confirmed === true, 'lingua scelta e salvata: ' + JSON.stringify(chosen));
 // lingua (prima apertura) e pagina del gioco in alpha
 const txt = await page.evaluate(() => document.body.innerText.slice(0, 300).replace(/\s+/g, ' '));
 console.log('schermo:', txt);
@@ -38,11 +50,11 @@ check(eyebrow === 'CLOSED BETA', 'stato nella scheda: ' + eyebrow);
 await page.screenshot({path: `shots/${kind}-3-alpha.png`});
 await page.evaluate(() => document.getElementById('detail-dialog').close());
 // 0.5.3: novità di GENESYS (una volta dopo l'aggiornamento) e dei giochi (dal catalogo firmato)
-const news = await page.evaluate(() => ({pending: window.GenesysWhatsNew ? window.GenesysWhatsNew.pending('0.5.2', state.version, true).map(e => e.version) : null, first: window.GenesysWhatsNew ? window.GenesysWhatsNew.pending('', state.version, false).length : null, game: (state.games.find(g => g.id === '7th-day') || {}).news?.version || null}));
+const news = await page.evaluate(() => ({pending: window.GenesysWhatsNew ? window.GenesysWhatsNew.pending('0.5.4', state.version, true).map(e => e.version) : null, first: window.GenesysWhatsNew ? window.GenesysWhatsNew.pending('', state.version, false).length : null, game: (state.games.find(g => g.id === '7th-day') || {}).news?.version || null}));
 console.log('novità:', JSON.stringify(news));
 check(Array.isArray(news.pending) && news.pending[0] === version && news.first === 0, 'novità di GENESYS ' + version + ' (non alla prima installazione)');
 check(news.game === '1.1.0', 'novità di 7TH DAY 1.1.0 nel catalogo');
-await page.evaluate(() => { state.settings.whatsNewSeen = '0.5.3'; state.settings.onboardingComplete = true; document.querySelectorAll('dialog[open]').forEach(d => d.close()); showWhatsNew(); });
+await page.evaluate(() => { state.settings.whatsNewSeen = '0.5.4'; state.settings.onboardingComplete = true; document.querySelectorAll('dialog[open]').forEach(d => d.close()); showWhatsNew(); });
 await page.waitForTimeout(1200);
 const wtitle = await page.evaluate(() => document.getElementById('whatsnew-dialog').open ? document.getElementById('whatsnew-title').textContent : null);
 check(!!wtitle, 'finestra novità: ' + wtitle);
@@ -59,6 +71,13 @@ check(!!free, 'impostazioni: ' + free);
 await page.screenshot({path: `shots/${kind}-3c-impostazioni.png`});
 await page.evaluate(() => setView('catalog'));
 await page.waitForTimeout(600);
+// 0.5.5: Little Shark con genere e descrizione dal catalogo nella lingua scelta (inglese)
+await page.evaluate(() => showDetail('little-shark'));
+await page.waitForTimeout(1000);
+const shark = await page.evaluate(() => document.getElementById('detail-dialog').innerText.replace(/\s+/g, ' '));
+check(/Swim with a little shark/.test(shark) && /Adventure · Arcade/.test(shark), 'Little Shark in inglese: ' + shark.slice(0, 160));
+await page.screenshot({path: `shots/${kind}-5-little-shark.png`});
+await page.evaluate(() => document.getElementById('detail-dialog').close());
 await page.evaluate(() => showDetail('7th-day'));
 await page.waitForTimeout(1200);
 await page.screenshot({path: `shots/${kind}-4-7thday.png`});
