@@ -36,6 +36,16 @@ print(' | '.join(n.get('text') for n in ET.parse('/tmp/ui.xml').iter('node') if 
 
 adb install -r -g /tmp/test/genesys-debug.apk || exit 1
 adb shell am start -W -n $ACT; sleep 6; shot lingua; texts
+# 0.2.3: lingua scelta dall'utente, tassativa: nessuna preselezione, "Continua" spento finché non se ne tocca una
+dump; python3 - <<'PY'
+import xml.etree.ElementTree as ET
+n=list(ET.parse('/tmp/ui.xml').iter('node'))
+sel=[x.get('text') for x in n if x.get('text')=='●']
+btn=[x for x in n if (x.get('text') or '') in ('Continua','Continue','Continuar','Weiter','Continuer')]
+en=[x.get('enabled') for x in btn]
+print('[emu] lingua: preselezionate', len(sel), '· Continua attivo prima della scelta:', en)
+PY
+tap "=Continua" || tap "=Continue" || true; sleep 2; dump; grep -q "Accedi con Google\|Sign in with Google" /tmp/ui.xml && log "ERRORE: si passa senza scegliere la lingua" || log "senza scelta non si passa (giusto)"
 tap "Italiano"; sleep 1; shot lingua-italiano; tap "Continua"; sleep 3; shot accesso; texts
 # 0.2.2: logo con la sigla del sito, niente "Mondi originali", "100% gratis, senza pubblicità" nell'accesso
 dump; grep -q "NEXT-GEN AI GAMING" /tmp/ui.xml && log "accesso: sigla sotto il logo ok" || log "ERRORE: sigla assente nell'accesso"
@@ -67,6 +77,12 @@ cb=0; for k in 1 2 3 4 5 6 7; do dump; if grep -q "Closed Beta" /tmp/ui.xml; the
 [ $cb = 1 ] && { log "Closed Beta visibile al posto dello stato"; shot closed-beta; } || log "ERRORE: Closed Beta non trovato"
 tap "PRIMAL" && { sleep 3; shot primal; texts; adb shell input keyevent KEYCODE_BACK; sleep 2; }
 for k in 1 2 3 4 5 6 7 8; do adb shell input swipe 500 600 500 1600 300; sleep 1; done
+# 0.2.3: Little Shark (in lavorazione, smartphone) con genere e descrizione dal catalogo nella lingua scelta
+for k in 1 2 3; do tap "=Little Shark" && break; adb shell input swipe 500 1500 500 800 400; sleep 1; done
+sleep 3; dump; grep -q "Nuota con un piccolo squalo" /tmp/ui.xml && log "Little Shark: descrizione in italiano (lingua scelta) ok" || log "ERRORE: descrizione di Little Shark"
+grep -q "Avventura · Arcade" /tmp/ui.xml && log "Little Shark: genere in italiano ok" || log "ERRORE: genere di Little Shark"
+grep -q "Questo gioco si gioca su PC" /tmp/ui.xml && log "ERRORE: Little Shark solo PC" || log "Little Shark: gioco per smartphone (giusto)"
+shot little-shark; adb shell input keyevent KEYCODE_BACK; sleep 2
 for g in "Luna Carnival" "Minuus" "Mini-Kart"; do
   for k in 1 2 3; do tap "=$g" && break; adb shell input swipe 500 1500 500 800 400; sleep 1; done
   sleep 3; dump; if grep -q "Questo gioco si gioca su PC" /tmp/ui.xml; then log "ERRORE: $g ancora solo PC"; else log "$g: gioco per smartphone (giusto)"; fi
@@ -107,16 +123,16 @@ if adb root >/dev/null 2>&1; then sleep 4; adb wait-for-device
   adb shell am force-stop $G7; adb unroot >/dev/null 2>&1; sleep 4; adb wait-for-device
 else log "root non disponibile: salto la prova del secondo livello"; fi
 adb logcat -d | grep -iE "seventhday|godot|ActivityTaskManager: START|FATAL|AndroidRuntime: |libc  |DEBUG   :|Abort|SecurityException" | tail -120 > $S/logcat-gioco.txt; tail -60 $S/logcat-gioco.txt
-# 0.2.2: novità una sola volta dopo l'aggiornamento (simulo chi arriva dalla 0.2.1, poi dalla 0.2.0)
+# 0.2.3: novità una sola volta dopo l'aggiornamento (simulo chi arriva dalla 0.2.2, poi dalla 0.2.0)
 adb shell am force-stop $PKG; sleep 1
-adb shell am start -W -n $ACT --es genesys_test_seen 0.2.1; sleep 5; shot novita-da-021; texts
-dump; anr; grep -q "Novità di GENESYS 0.2.2" /tmp/ui.xml && log "novità 0.2.2 mostrate: ok" || log "ERRORE: novità 0.2.2 non mostrate"
-grep -q "Locandine più pulite" /tmp/ui.xml && log "novità 0.2.2: testo ok" || log "ERRORE: testo novità 0.2.2"
-grep -q "7TH DAY 1.1.0: nuova modalità" /tmp/ui.xml && log "ERRORE: da 0.2.1 mostra anche le novità 0.2.1" || log "da 0.2.1: solo le novità 0.2.2 (giusto)"
+adb shell am start -W -n $ACT --es genesys_test_seen 0.2.2; sleep 5; shot novita-da-022; texts
+dump; anr; grep -q "Novità di GENESYS 0.2.3" /tmp/ui.xml && log "novità 0.2.3 mostrate: ok" || log "ERRORE: novità 0.2.3 non mostrate"
+grep -q "Little Shark, in arrivo" /tmp/ui.xml && log "novità 0.2.3: testo ok" || log "ERRORE: testo novità 0.2.3"
+grep -q "Locandine più pulite" /tmp/ui.xml && log "ERRORE: da 0.2.2 mostra anche le novità 0.2.2" || log "da 0.2.2: solo le novità 0.2.3 (giusto)"
 tap "Ho capito"; sleep 2
 adb shell am force-stop $PKG; sleep 1
 adb shell am start -W -n $ACT --es genesys_test_seen 0.2.0; sleep 5; shot novita; texts
-dump; anr; grep -q "Novità di GENESYS 0.2.2" /tmp/ui.xml && log "novità mostrate: ok" || log "ERRORE: novità non mostrate"
+dump; anr; grep -q "Novità di GENESYS 0.2.3" /tmp/ui.xml && log "novità mostrate: ok" || log "ERRORE: novità non mostrate"
 tap "Ho capito"; sleep 2
 adb shell am force-stop $PKG; sleep 1; adb shell am start -W -n $ACT; sleep 5
 dump; anr; grep -q "Novità di GENESYS" /tmp/ui.xml && log "ERRORE: novità mostrate due volte" || log "riaperta: novità non ripetute (giusto)"
