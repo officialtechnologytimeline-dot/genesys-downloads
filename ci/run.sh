@@ -74,6 +74,7 @@ case "$KIND" in
     gh release upload genesys-channel android-catalog.json --clobber
     echo "pubblicato $TAG e android-catalog.json"
     ;;
+  sito) echo "prova del sito con Chrome su Android: nel passo dell'emulatore";;
   *) echo "lavoro sconosciuto: $KIND"; exit 1;;
 esac
 echo "FINE-OK"
