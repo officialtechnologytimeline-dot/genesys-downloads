@@ -95,6 +95,11 @@ for g in "Luna Carnival" "Minuus" "Mini-Kart"; do
     shot "$(echo $g | tr ' A-Z' '-a-z')"
   else log "ERRORE: $g non trovato nella lista"; fi
 done
+# 0.2.4: Groundstrike Zero con lo stato SOON («In arrivo» in italiano), non «In lavorazione»
+if opengame "Groundstrike Zero"; then sleep 3; dump; shot groundstrike
+  grep -q "In arrivo" /tmp/ui.xml && log "Groundstrike Zero: stato In arrivo (SOON) ok" || log "ERRORE: Groundstrike Zero senza stato In arrivo"
+  grep -q "In lavorazione" /tmp/ui.xml && log "ERRORE: Groundstrike Zero ancora In lavorazione" || log "Groundstrike Zero: non più In lavorazione (giusto)"
+else log "ERRORE: Groundstrike Zero non trovato nella lista"; fi
 adb shell am force-stop $PKG; sleep 1; adb shell am start -W -n $ACT >/dev/null; sleep 5
 tap "7TH DAY"; sleep 4; shot 7thday; texts
 tap "Scarica gratis"; sleep 3; shot permesso; texts
@@ -129,16 +134,16 @@ if adb root >/dev/null 2>&1; then sleep 4; adb wait-for-device
   adb shell am force-stop $G7; adb unroot >/dev/null 2>&1; sleep 4; adb wait-for-device
 else log "root non disponibile: salto la prova del secondo livello"; fi
 adb logcat -d | grep -iE "seventhday|godot|ActivityTaskManager: START|FATAL|AndroidRuntime: |libc  |DEBUG   :|Abort|SecurityException" | tail -120 > $S/logcat-gioco.txt; tail -60 $S/logcat-gioco.txt
-# 0.2.3: novità una sola volta dopo l'aggiornamento (simulo chi arriva dalla 0.2.2, poi dalla 0.2.0)
+# 0.2.4: novità una sola volta dopo l'aggiornamento (simulo chi arriva dalla 0.2.3, poi dalla 0.2.2)
 adb shell am force-stop $PKG; sleep 1
-adb shell am start -W -n $ACT --es genesys_test_seen 0.2.2; sleep 5; shot novita-da-022; texts
-dump; anr; grep -q "Novità di GENESYS 0.2.3" /tmp/ui.xml && log "novità 0.2.3 mostrate: ok" || log "ERRORE: novità 0.2.3 non mostrate"
-grep -q "Little Shark, in arrivo" /tmp/ui.xml && log "novità 0.2.3: testo ok" || log "ERRORE: testo novità 0.2.3"
-grep -q "Locandine più pulite" /tmp/ui.xml && log "ERRORE: da 0.2.2 mostra anche le novità 0.2.2" || log "da 0.2.2: solo le novità 0.2.3 (giusto)"
+adb shell am start -W -n $ACT --es genesys_test_seen 0.2.3; sleep 5; shot novita-da-023; texts
+dump; anr; grep -q "Novità di GENESYS 0.2.4" /tmp/ui.xml && log "novità 0.2.4 mostrate: ok" || log "ERRORE: novità 0.2.4 non mostrate"
+grep -q "come Groundstrike Zero" /tmp/ui.xml && log "novità 0.2.4: testo ok" || log "ERRORE: testo novità 0.2.4"
+grep -q "Little Shark, in arrivo" /tmp/ui.xml && log "ERRORE: da 0.2.3 mostra anche le novità 0.2.3" || log "da 0.2.3: solo le novità 0.2.4 (giusto)"
 tap "Ho capito"; sleep 2
 adb shell am force-stop $PKG; sleep 1
-adb shell am start -W -n $ACT --es genesys_test_seen 0.2.0; sleep 5; shot novita; texts
-dump; anr; grep -q "Novità di GENESYS 0.2.3" /tmp/ui.xml && log "novità mostrate: ok" || log "ERRORE: novità non mostrate"
+adb shell am start -W -n $ACT --es genesys_test_seen 0.2.2; sleep 5; shot novita; texts
+dump; anr; grep -q "Novità di GENESYS 0.2.4" /tmp/ui.xml && log "novità mostrate: ok" || log "ERRORE: novità non mostrate"
 tap "Ho capito"; sleep 2
 adb shell am force-stop $PKG; sleep 1; adb shell am start -W -n $ACT; sleep 5
 dump; anr; grep -q "Novità di GENESYS" /tmp/ui.xml && log "ERRORE: novità mostrate due volte" || log "riaperta: novità non ripetute (giusto)"
