@@ -10,7 +10,7 @@ CH=com.android.chrome
 adb shell pm list packages | grep -q "package:$CH$" || { log "ERRORE: Chrome non c'è nell'emulatore"; exit 0; }
 adb shell dumpsys package $CH | grep -m1 versionName | sed 's/^ */[sito] Chrome /'
 adb shell am set-debug-app --persistent $CH
-adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run --disable-features=SigninPromo" > /data/local/tmp/chrome-command-line'
+adb shell 'echo "_ --disable-fre --no-default-browser-check --no-first-run --disable-features=SigninPromo --remote-allow-origins=*" > /data/local/tmp/chrome-command-line'
 adb shell settings put global development_settings_enabled 1
 adb shell setprop persist.sys.locale it-IT 2>/dev/null; adb shell cmd locale set-app-locales $CH --locales it-IT 2>/dev/null || true
 adb shell am start -W -a android.intent.action.VIEW -d "about:blank" $CH >/dev/null; sleep 8
@@ -23,7 +23,7 @@ cat > /tmp/cdp.py <<'PY'
 import sys, json, time, urllib.request, websocket
 url, label = sys.argv[1], sys.argv[2]
 pages = [x for x in json.load(urllib.request.urlopen('http://localhost:9222/json')) if x.get('type') == 'page']
-ws = websocket.create_connection(pages[0]['webSocketDebuggerUrl'], timeout=30)
+ws = websocket.create_connection(pages[0]['webSocketDebuggerUrl'], timeout=30, suppress_origin=True)
 n = [0]; errors = []
 def send(method, params=None):
     n[0] += 1; i = n[0]; ws.send(json.dumps({'id': i, 'method': method, 'params': params or {}}))
