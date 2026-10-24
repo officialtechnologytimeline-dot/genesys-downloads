@@ -48,19 +48,20 @@ while time.time() < end:
             errors.append('[log] ' + m['params']['entry'].get('text', '')[:160] + ' ' + (m['params']['entry'].get('url') or '').split('/')[-1])
     except Exception: pass
 ws.settimeout(30)
-JSX = """(()=>{const g=[...document.querySelectorAll('.game-grid .game-card')].filter(c=>!c.hidden).map(c=>{const r=c.getBoundingClientRect();return [c.dataset.name,(c.querySelector('.status')||{}).textContent,+c.dataset.statusRank,Math.round(r.top+scrollY)]});g.sort((a,b)=>a[3]-b[3]);
- return {lang:document.documentElement.lang, sort:(document.querySelector('#game-sort')||{}).value, script:[...document.scripts].map(s=>s.src.split('/').pop()).filter(Boolean).join(' '), cls:document.documentElement.className, order:g.map(x=>x[0]+' ('+x[1]+')'), ranks:g.map(x=>x[2])}})()"""
+JSX = """(()=>{const R={'state-available':0,'state-soon':1,'state-active':2,'state-planned':3};const g=[...document.querySelectorAll('.game-grid .game-card')].filter(c=>!c.hidden).map(c=>{const r=c.getBoundingClientRect();return [c.dataset.name,(c.querySelector('.status')||{}).textContent,R[[...c.classList].find(k=>k.startsWith('state-'))],Math.round(r.top+scrollY)]});g.sort((a,b)=>a[3]-b[3]);
+ return {lang:document.documentElement.lang, sort:(document.querySelector('#game-sort')||{}).value, script:[...document.scripts].map(s=>s.src.split('/').pop()).filter(Boolean).join(' '), cls:document.documentElement.className, order:g.map(x=>x[0]+' ('+x[1]+')'), ranks:g.map(x=>x[2]), dl:[...new Set([...document.querySelectorAll('[data-launcher-os]')].map(a=>a.href.split('/').pop()))].join(' ')}})()"""
 r = send('Runtime.evaluate', {'expression': JSX, 'returnByValue': True})
 info = (r.get('result') or {}).get('result', {}).get('value') or {}
 ranks = info.get('ranks') or []
 print(f"[sito] {label}: lingua={info.get('lang')} ordina={info.get('sort')} schede={len(ranks)} {'ORDINE GIUSTO' if ranks and ranks == sorted(ranks) else 'ERRORE: ORDINE SBAGLIATO'}")
 print(f"[sito] {label}: ordine visto = {' > '.join(info.get('order') or [])}")
 print(f"[sito] {label}: script = {info.get('script')} | classi = {info.get('cls')}")
+print(f"[sito] {label}: download PC = {info.get('dl')}")
 print(f"[sito] {label}: errori JavaScript = {' | '.join(errors) if errors else 'nessuno'}")
 send('Runtime.evaluate', {'expression': "document.querySelector('.game-grid')&&document.querySelector('.game-grid').scrollIntoView()"})
 ws.close()
 PY
-for u in "https://genesys.technology-timeline.com/|online" "https://fec415dd.genesys-site.pages.dev/|v60-di-ieri-sera" "https://bae9d766.genesys-site.pages.dev/|v61-di-stanotte"; do
+for u in "https://genesys.technology-timeline.com/|online"; do
   python3 /tmp/cdp.py "${u%%|*}" "${u##*|}" 2>&1 | tail -6; sleep 3; shot "${u##*|}"
   adb shell input swipe 500 1500 500 700 300; sleep 2; shot "${u##*|}-giu"
 done
