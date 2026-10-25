@@ -54,7 +54,7 @@ case "$KIND" in
     tar czf "genesys-android-source-$VER.tgz" -C /tmp/p genesys-android
     up "genesys-android-source-$VER.tgz"
     ;;
-  test)
+  test|foto)
     open_enc ci/payload.enc ci/payload.key.enc /tmp/p
     rm -f /tmp/vault.key
     cd /tmp/p/genesys-android

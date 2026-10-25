@@ -33,13 +33,13 @@ jobs:
       - name: Job
         run: bash ci/run.sh 2>&1 | tee ci-log.txt; exit ${PIPESTATUS[0]}
       - name: KVM
-        if: steps.kind.outputs.kind == 'test' || steps.kind.outputs.kind == 'sito'
+        if: steps.kind.outputs.kind == 'test' || steps.kind.outputs.kind == 'sito' || steps.kind.outputs.kind == 'foto'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Emulator test
-        if: steps.kind.outputs.kind == 'test' || steps.kind.outputs.kind == 'sito'
+        if: steps.kind.outputs.kind == 'test' || steps.kind.outputs.kind == 'sito' || steps.kind.outputs.kind == 'foto'
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -48,7 +48,7 @@ jobs:
           disable-animations: true
           profile: pixel_6
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash ci/$([ "$(jq -r .kind ci/job.json)" = sito ] && echo sito || echo emu).sh 2>&1 | tee -a ci-log.txt
+          script: bash ci/$(K=$(jq -r .kind ci/job.json); [ "$K" = sito ] && echo sito || { [ "$K" = foto ] && echo foto || echo emu; }).sh 2>&1 | tee -a ci-log.txt
       - name: Log
         if: always()
         run: bash ci/log.sh
