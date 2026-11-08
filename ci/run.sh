@@ -18,6 +18,7 @@ cd /tmp/p/cardkt
 mkdir -p ~/.android && cp .ci/debug.keystore ~/.android/debug.keystore; [ -n "${ANDROID_USER_HOME:-}" ] && mkdir -p "$ANDROID_USER_HOME" && cp .ci/debug.keystore "$ANDROID_USER_HOME/debug.keystore" || true
 if node tests/cardkt-core-regression.mjs >> "$LOG" 2>&1; then say "test: $(tail -1 "$LOG")"; else finish "TEST FALLITI"; fi
 chmod +x gradlew
+for attempt in 1 2 3; do ./gradlew --no-daemon --console=plain --version > /tmp/wrapper.log 2>&1 && break; say "download Gradle: nuovo tentativo $attempt"; sleep 10; done
 if ./gradlew --no-daemon --console=plain assembleDebug > /tmp/gradle.log 2>&1; then
   say "assembleDebug: BUILD SUCCESSFUL"; grep -E "^w: |warning:" /tmp/gradle.log | head -60 >> "$LOG" || true
 else
