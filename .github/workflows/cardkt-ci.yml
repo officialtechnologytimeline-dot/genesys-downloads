@@ -1,0 +1,29 @@
+# Test build of an Android app on GitHub's free runners. Runs only on the cardkt-ci branch.
+# Sources travel encrypted; APK and logs go to the owner-only draft release.
+name: cardkt-ci
+on:
+  push:
+    branches: [cardkt-ci]
+permissions:
+  contents: write
+concurrency:
+  group: cardkt-ci
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build
+        run: bash ci/run.sh
