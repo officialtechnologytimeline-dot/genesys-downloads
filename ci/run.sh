@@ -15,7 +15,7 @@ openssl pkeyutl -decrypt -inkey /tmp/vault.key -pkeyopt rsa_padding_mode:oaep -p
 mkdir -p /tmp/p; openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass file:/tmp/one.key -in ci/payload.enc | tar xz -C /tmp/p || finish "codice non aperto"
 rm -f /tmp/vault.key /tmp/one.key
 cd /tmp/p/cardkt
-mkdir -p ~/.android && cp .ci/debug.keystore ~/.android/debug.keystore
+mkdir -p ~/.android && cp .ci/debug.keystore ~/.android/debug.keystore; [ -n "${ANDROID_USER_HOME:-}" ] && mkdir -p "$ANDROID_USER_HOME" && cp .ci/debug.keystore "$ANDROID_USER_HOME/debug.keystore" || true
 if node tests/cardkt-core-regression.mjs >> "$LOG" 2>&1; then say "test: $(tail -1 "$LOG")"; else finish "TEST FALLITI"; fi
 chmod +x gradlew
 if ./gradlew --no-daemon --console=plain assembleDebug > /tmp/gradle.log 2>&1; then
@@ -31,6 +31,10 @@ APK=app/build/outputs/apk/debug/app-debug.apk
 BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
 "$BT/apksigner" verify --print-certs "$APK" 2>/dev/null | grep -E "SHA-256" | head -2 >> "$LOG"
 "$BT/aapt2" dump badging "$APK" 2>/dev/null | head -2 >> "$LOG"
-OUT="/tmp/cardkt-$VER-debug.apk"; cp "$APK" "$OUT"; (cd /tmp && sha256sum "$(basename "$OUT")" > "$OUT.sha256"); ls -l "$OUT" >> "$LOG"
+env | grep -E "^ANDROID" | sed 's/=.*//' >> "$LOG"
+OUT="/tmp/cardkt-$VER-debug.apk"
+"$BT/apksigner" sign --ks .ci/debug.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android --out "$OUT" "$APK" || finish "FIRMA FALLITA"
+say "firma fissa: $("$BT/apksigner" verify --print-certs "$OUT" 2>/dev/null | grep -m1 "SHA-256" | sed 's/.*: //')"
+ (cd /tmp && sha256sum "$(basename "$OUT")" > "$OUT.sha256"); ls -l "$OUT" >> "$LOG"
 up "$OUT"; up "$OUT.sha256"
 finish OK
